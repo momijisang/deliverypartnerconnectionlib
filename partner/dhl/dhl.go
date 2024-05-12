@@ -1,24 +1,29 @@
 package dhl
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/salesX-technology/deliverypartnerconnectionlib"
 )
 
 var (
-	_ deliverypartnerconnectionlib.OrderCreator = (*dhlService)(nil)
-	_ deliverypartnerconnectionlib.OrderUpdator = (*dhlService)(nil)
-	_ deliverypartnerconnectionlib.OrderDeleter = (*dhlService)(nil)
+	_ deliverypartnerconnectionlib.OrderCreator       = (*dhlService)(nil)
+	_ deliverypartnerconnectionlib.OrderUpdator       = (*dhlService)(nil)
+	_ deliverypartnerconnectionlib.OrderDeleter       = (*dhlService)(nil)
+	_ deliverypartnerconnectionlib.OrderHook          = (*dhlService)(nil)
+	_ deliverypartnerconnectionlib.OrderCancelCreated = (*dhlService)(nil)
 )
 
 type dhlService struct {
-	authorizer         Authenticator
-	dhlOrderCreatorAPI DHLOrderCreatorAPI
-	dhlOrderDeletorAPI DHLOrderDeletorAPI
-	dhlOrderUpdatorAPI DHLOrderUpdatorAPI
-	DHLAPIConfig       DHLAPIConfig
-	nowFunc            func() time.Time
+	authorizer               Authenticator
+	dhlOrderCreatorAPI       DHLOrderCreatorAPI
+	dhlOrderDeletorAPI       DHLOrderDeletorAPI
+	dhlOrderUpdatorAPI       DHLOrderUpdatorAPI
+	dhlOrderHookAPI          DHLOrderHookAPI
+	dhlCancelCreatedOrderAPI DHLCancelCreatedOrderAPI
+	DHLAPIConfig             DHLAPIConfig
+	nowFunc                  func() time.Time
 }
 
 type DHLServiceOption func(*dhlService)
@@ -33,15 +38,19 @@ func NewDHLService(
 	dhlOrderCreatorAPI DHLOrderCreatorAPI,
 	dhlOrderUpdatorAPI DHLOrderUpdatorAPI,
 	dhlOrderDeletorAPI DHLOrderDeletorAPI,
+	dhlOrderHookAPI DHLOrderHookAPI,
+	dhlCancelCreatedOrderAPI DHLCancelCreatedOrderAPI,
 	dhlAPIConfig DHLAPIConfig,
 	options ...DHLServiceOption,
 ) *dhlService {
 	svc := &dhlService{
-		authorizer:         authorizer,
-		dhlOrderCreatorAPI: dhlOrderCreatorAPI,
-		dhlOrderDeletorAPI: dhlOrderDeletorAPI,
-		dhlOrderUpdatorAPI: dhlOrderUpdatorAPI,
-		DHLAPIConfig:       dhlAPIConfig,
+		authorizer:               authorizer,
+		dhlOrderCreatorAPI:       dhlOrderCreatorAPI,
+		dhlOrderDeletorAPI:       dhlOrderDeletorAPI,
+		dhlOrderUpdatorAPI:       dhlOrderUpdatorAPI,
+		dhlOrderHookAPI:          dhlOrderHookAPI,
+		dhlCancelCreatedOrderAPI: dhlCancelCreatedOrderAPI,
+		DHLAPIConfig:             dhlAPIConfig,
 		nowFunc: func() time.Time {
 			return time.Now().Local()
 		},
@@ -393,4 +402,77 @@ func (f *dhlService) CreateReceived(order deliverypartnerconnectionlib.Order) (m
 	}
 
 	return resDHLOrderCreateOrder, nil
+}
+
+func (f *dhlService) HookOrder(trackingNumberList []string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+
+	accessToken, err := f.authorizer.Authenticate()
+	if err != nil {
+		return result, err
+	}
+
+	trackingDateTime := f.nowFunc().Format("2006-01-02T15:04:05-07:00")
+	result, err = f.dhlOrderHookAPI.Post(
+		"/rest/v3/Tracking",
+		map[string]string{
+			"Content-Type": "application/json",
+		}, DHLHookOrderAPIRequest{
+			TrackItemRequest: TrackItemRequest{
+				HDR: HDR{
+					MessageType:     "TRACKITEM",
+					MessageDateTime: trackingDateTime,
+					MessageVersion:  "1.0",
+					AccessToken:     accessToken,
+				},
+				BD: BD{
+					PickupAccountID:         f.DHLAPIConfig.PickupAccountID,
+					SoldToAccountID:         f.DHLAPIConfig.SoldToAccountID,
+					TrackingReferenceNumber: trackingNumberList,
+				},
+			},
+		})
+	if err != nil {
+		return result, fmt.Errorf("failed to hook order with dhl: %s", err)
+	}
+
+	return result, nil
+}
+
+func (f *dhlService) CancelCreatedOrder(trackingNumber string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+
+	accessToken, err := f.authorizer.Authenticate()
+	if err != nil {
+		return result, err
+	}
+
+	transactionDateTime := f.nowFunc().Format("2006-01-02T15:04:05-07:00")
+
+	result, err = f.dhlOrderDeletorAPI.Post(
+		"/rest/v2/Label/Delete",
+		map[string]string{
+			"Content-Type": "application/json",
+		}, DHLDeleteOrderAPIRequest{
+			DeleteShipmentReq: DHLDeleteOrderAPIRequestDeleteShipmentRequest{
+				HDR: HDR{
+					MessageType:     "DELETESHIPMENT",
+					MessageDateTime: transactionDateTime,
+					AccessToken:     accessToken,
+					MessageVersion:  "1.0",
+				},
+				BD: BD{
+					SoldToAccountID: f.DHLAPIConfig.SoldToAccountID,
+					PickupAccountID: f.DHLAPIConfig.PickupAccountID,
+					ShipmentItems: []ShipmentItem{
+						ShipmentItem{ShipmentID: trackingNumber},
+					},
+				},
+			},
+		})
+	if err != nil {
+		return result, fmt.Errorf("failed to cancel order with dhl: %s", err)
+	}
+
+	return result, nil
 }

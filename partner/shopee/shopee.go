@@ -12,24 +12,26 @@ import (
 )
 
 var (
-	_ deliverypartnerconnectionlib.OrderCreator = (*shopeeService)(nil)
-	_ deliverypartnerconnectionlib.OrderUpdator = (*shopeeService)(nil)
-	_ deliverypartnerconnectionlib.OrderDeleter = (*shopeeService)(nil)
+	_ deliverypartnerconnectionlib.OrderCreator       = (*shopeeService)(nil)
+	_ deliverypartnerconnectionlib.OrderUpdator       = (*shopeeService)(nil)
+	_ deliverypartnerconnectionlib.OrderDeleter       = (*shopeeService)(nil)
+	_ deliverypartnerconnectionlib.OrderCancelCreated = (*shopeeService)(nil)
 )
 
 type shopeeService struct {
-	appID                uint64
-	appSecret            string
-	userID               uint64
-	userSecret           string
-	checkSignFunc        func(timestamp, randomInt64 int64, payload []byte) string
-	unixFunc             func() int64
-	randomFunc           func() int64
-	shopeeCreateOrderAPI ShoppeeCreateOrderAPI
-	shopeeUpdateOrderAPI ShopeeUpdateOrderAPI
-	ShopeeCancelOrderAPI ShopeeCancelOrderAPI
-	shopeeTimeSlotAPI    ShopeePickUpTimeAPI
-	shopeeHookOrderAPI   ShopeeHookOrderAPI
+	appID                       uint64
+	appSecret                   string
+	userID                      uint64
+	userSecret                  string
+	checkSignFunc               func(timestamp, randomInt64 int64, payload []byte) string
+	unixFunc                    func() int64
+	randomFunc                  func() int64
+	shopeeCreateOrderAPI        ShoppeeCreateOrderAPI
+	shopeeUpdateOrderAPI        ShopeeUpdateOrderAPI
+	ShopeeCancelOrderAPI        ShopeeCancelOrderAPI
+	shopeeTimeSlotAPI           ShopeePickUpTimeAPI
+	shopeeHookOrderAPI          ShopeeHookOrderAPI
+	shopeeCancelCreatedOrderAPI ShopeeCancelCreatedOrderAPI
 }
 
 type ShopeeServiceOption func(*shopeeService)
@@ -43,20 +45,22 @@ func NewShopeeService(
 	shopeeUpdateOrderAPI ShopeeUpdateOrderAPI,
 	ShopeeCancelOrderAPI ShopeeCancelOrderAPI,
 	shopeeTimeSlotAPI ShopeePickUpTimeAPI,
+	shopeeCancelCreatedOrderAPI ShopeeCancelCreatedOrderAPI,
 	options ...ShopeeServiceOption,
 ) *shopeeService {
 	svc := &shopeeService{
-		appID:                appID,
-		appSecret:            appSecret,
-		userID:               userID,
-		userSecret:           userSecret,
-		checkSignFunc:        makeSignarureGenerator(appID, appSecret),
-		unixFunc:             localUnixFunc,
-		randomFunc:           secureRandomInt64,
-		shopeeCreateOrderAPI: shopeeCreateOrderAPI,
-		shopeeUpdateOrderAPI: shopeeUpdateOrderAPI,
-		ShopeeCancelOrderAPI: ShopeeCancelOrderAPI,
-		shopeeTimeSlotAPI:    shopeeTimeSlotAPI,
+		appID:                       appID,
+		appSecret:                   appSecret,
+		userID:                      userID,
+		userSecret:                  userSecret,
+		checkSignFunc:               makeSignarureGenerator(appID, appSecret),
+		unixFunc:                    localUnixFunc,
+		randomFunc:                  secureRandomInt64,
+		shopeeCreateOrderAPI:        shopeeCreateOrderAPI,
+		shopeeUpdateOrderAPI:        shopeeUpdateOrderAPI,
+		ShopeeCancelOrderAPI:        ShopeeCancelOrderAPI,
+		shopeeTimeSlotAPI:           shopeeTimeSlotAPI,
+		shopeeCancelCreatedOrderAPI: shopeeCancelCreatedOrderAPI,
 	}
 
 	for _, option := range options {
@@ -107,6 +111,8 @@ func (f *shopeeService) CreateOrder(order deliverypartnerconnectionlib.Order) (m
 		"timestamp":    strconv.FormatInt(timeStamp, 10),
 		"random-num":   strconv.FormatInt(randomNumForRequest, 10),
 	}, timeSlotRequest)
+
+	fmt.Printf("timeSlotResponse: %v", timeSlotResponse)
 
 	var shopeeCreateOrderRequestBody = CreateOrderRequest{}
 
@@ -220,6 +226,9 @@ func (f *shopeeService) CreateOrder(order deliverypartnerconnectionlib.Order) (m
 			"random-num":   strconv.FormatInt(randomNumForRequest, 10),
 		}, shopeeCreateOrderRequestBody,
 	)
+
+	fmt.Printf("shopeeCreateOrderAPI: %v", response)
+
 	if err != nil {
 		return responseOrder, fmt.Errorf("shopee create order failed with error: %w", err)
 	}
@@ -433,4 +442,37 @@ func (f *shopeeService) HookOrder(tracking_no_list []string) (map[string]interfa
 
 func (f *shopeeService) CreateReceived(order deliverypartnerconnectionlib.Order) (map[string]interface{}, error) {
 	return nil, nil
+}
+
+func (f *shopeeService) CancelCreatedOrder(trackingNumber string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	randomNumForRequest := f.randomFunc()
+
+	cancelOrderRequest := CancelOrderRequest{
+		UserID:         f.userID,
+		UserSecret:     f.userSecret,
+		TrackingNoList: []string{trackingNumber},
+	}
+
+	cancelOrderRequestBytes, err := json.Marshal(cancelOrderRequest)
+	if err != nil {
+		return result, fmt.Errorf("shopee cancel order failed with error: %w", err)
+	}
+
+	timeStamp := f.unixFunc()
+	result, err = f.ShopeeCancelOrderAPI.Post(
+		"/open/api/v1/order/batch_cancel_order",
+		map[string]string{
+			"Content-Type": "application/json",
+			"check-sign":   f.checkSignFunc(timeStamp, randomNumForRequest, cancelOrderRequestBytes),
+			"app-id":       strconv.FormatUint(f.appID, 10),
+			"timestamp":    strconv.FormatInt(timeStamp, 10),
+			"random-num":   strconv.FormatInt(randomNumForRequest, 10),
+		}, cancelOrderRequest,
+	)
+	if err != nil {
+		return result, fmt.Errorf("shopee cancel order failed with error: %w", err)
+	}
+
+	return result, nil
 }

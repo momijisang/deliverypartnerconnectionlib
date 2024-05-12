@@ -24,14 +24,16 @@ func main() {
 	fCreate := httpclient.NewHTTPFormPoster[flash.FlashCreateOrderAPIResponse]("https://open-api-tra.flashexpress.com", http.DefaultClient)
 	fUpdate := httpclient.NewHTTPFormPoster[flash.FlashOrderUpdateAPIResponse]("https://open-api-tra.flashexpress.com", http.DefaultClient)
 	fDelete := httpclient.NewHTTPFormPoster[flash.FlashOrderDeleteAPIResponse]("https://open-api-tra.flashexpress.com", http.DefaultClient)
-	fs := flash.NewFlashService(fCreate, fUpdate, fDelete, "8db711e11b3fe34f793444d6f2b4679be9da45446fbb82b84e40e90e1868ed75", "AA2315")
+	fCancel := httpclient.NewHTTPFormPoster[flash.FlashOrderCancelCreatedAPIResponse]("https://open-api-tra.flashexpress.com", http.DefaultClient)
+	fs := flash.NewFlashService(fCreate, fUpdate, fDelete, fCancel, "8db711e11b3fe34f793444d6f2b4679be9da45446fbb82b84e40e90e1868ed75", "AA2315")
 
 	shopeeTimeSlotAPI := httpclient.NewHTTPPoster[shopee.TimeSlotRequest, shopee.TimeSlotResponse](http.DefaultClient, "https://test-stable.spx.co.th", map[string]string{})
 	shopeeCreateOrderPoster := httpclient.NewHTTPPoster[shopee.CreateOrderRequest, shopee.CreateOrderResponse](http.DefaultClient, "https://test-stable.spx.co.th", map[string]string{})
 	shopeeUpdateOrderPoster := httpclient.NewHTTPPoster[shopee.UpdateOrderRequest, shopee.UpdateOrderResponse](http.DefaultClient, "https://test-stable.spx.co.th", map[string]string{})
 	shopeeCancelOrderPoster := httpclient.NewHTTPPoster[shopee.CancelOrderRequest, shopee.CancelOrderResponse](http.DefaultClient, "https://test-stable.spx.co.th", map[string]string{})
+	shopeeCancelCreatedOrderPoster := httpclient.NewHTTPPoster[shopee.CancelOrderRequest, shopee.CancelOrderResponse](http.DefaultClient, "https://test-stable.spx.co.th", map[string]string{})
 
-	ss := shopee.NewShopeeService(100190, "57e08ead78cf63721eed92911f2dfe8a1a1152ebc880877ceae96e406c16dbab", 36439626319285, "b32776af-28c0-4283-971c-92ac48c01afe", shopeeCreateOrderPoster, shopeeUpdateOrderPoster, shopeeCancelOrderPoster, shopeeTimeSlotAPI)
+	ss := shopee.NewShopeeService(100190, "57e08ead78cf63721eed92911f2dfe8a1a1152ebc880877ceae96e406c16dbab", 36439626319285, "b32776af-28c0-4283-971c-92ac48c01afe", shopeeCreateOrderPoster, shopeeUpdateOrderPoster, shopeeCancelOrderPoster, shopeeTimeSlotAPI, shopeeCancelCreatedOrderPoster)
 
 	dhlAuthenAPI := httpclient.NewHTTPGetter[dhl.DHLAuthenticationAPIRequest, dhl.DHLAuthenticationAPIResponse](http.DefaultClient, "https://api.dhlecommerce.dhl.com", map[string]string{})
 	auth := dhl.NewDHLAuthenticator(dhlAuthenAPI, "MTMwMTY0NzIzNw==", "customerpassword@2403790402")
@@ -39,11 +41,15 @@ func main() {
 	dhlCreateOrderAPI := httpclient.NewHTTPPoster[dhl.DHLCreateOrderAPIRequest, dhl.DHLCreateOrderAPIResponse](http.DefaultClient, "https://api.dhlecommerce.dhl.com", map[string]string{})
 	dhlUpdateOrderAPI := httpclient.NewHTTPPoster[dhl.DHLUpdateOrderAPIRequest, dhl.DHLUpdateOrderAPIResponse](http.DefaultClient, "https://api.dhlecommerce.dhl.com", map[string]string{})
 	dhlDeleteOrderAPI := httpclient.NewHTTPPoster[dhl.DHLDeleteOrderAPIRequest, dhl.DHLDeleteOrderAPIResponse](http.DefaultClient, "https://api.dhlecommerce.dhl.com", map[string]string{})
+	dhlHookOrderAPI := httpclient.NewHTTPPoster[dhl.DHLHookOrderAPIRequest, dhl.DHLHookOrderAPIResponse](http.DefaultClient, "https://api.dhlecommerce.dhl.com", map[string]string{})
+	dhlCancelCreatedOrderAPI := httpclient.NewHTTPPoster[dhl.DHLDeleteOrderAPIRequest, dhl.DHLDeleteOrderAPIResponse](http.DefaultClient, "https://api.dhlecommerce.dhl.com", map[string]string{})
 	dhl := dhl.NewDHLService(
 		auth,
 		dhlCreateOrderAPI,
 		dhlUpdateOrderAPI,
 		dhlDeleteOrderAPI,
+		dhlHookOrderAPI,
+		dhlCancelCreatedOrderAPI,
 		dhl.DHLAPIConfig{
 			PickupAccountID: "5299060260",
 			SoldToAccountID: "5299060260",
@@ -69,22 +75,34 @@ func main() {
 		map[string]deliverypartnerconnectionlib.OrderHook{
 			// "FLASH":  fs,
 			"SHOPEE": ss,
-			// "DHL":    dhl,
+			"DHL":    dhl,
 		},
 		map[string]deliverypartnerconnectionlib.OrderReceived{
 			"FLASH":  fs,
 			"DHL":    dhl,
 			"SHOPEE": ss,
 		},
+		map[string]deliverypartnerconnectionlib.OrderCancelCreated{
+			"FLASH":  fs,
+			"SHOPEE": ss,
+			"DHL":    dhl,
+		},
 	)
+
+	_ = dpl
+	// dhlHookOrderExample(dpl, []string{"1TH15107346524631"})
+	// dhlCancelCreatedOrderExample(dpl, "1TH15107346524631")
+	// shopeeCancelCreatedOrderExample(dpl, "SPXTH044752225833")
+	// flashCancelCreatedOrderExample(dpl, "TH4714C6DB0A")
+
 	// tracking_no_list := []string{"SPXTH026817968592", "SPXTH026817099535"}
 	// shopeeHookOrderExamle(dpl, tracking_no_list)
 
-	shopeeCreateOrderExample(dpl)
+	// shopeeCreateOrderExample(dpl)
 	// shopeeCancelOrderExample(dpl, "SPXTH044752225833")
 
 	// dhlUpdateOrderOrderExample(dpl)
-	// _, err := dhlCreateOrderExample(dpl, "207")
+	// _, err := dhlCreateOrderExample(dpl, "333")
 	// if err != nil {
 	// 	panic(err)
 	// }
@@ -461,4 +479,40 @@ func shopeeHookOrderExamle(dpl *deliverypartnerconnectionlib.DeliveryPartnerConn
 
 	fmt.Println(res)
 
+}
+
+func dhlHookOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, trackingNumberList []string) {
+	result, err := dpl.HookOrder("DHL", trackingNumberList)
+	if err != nil {
+		fmt.Printf("dhlHookOrderExample err: %v\n", err)
+	} else {
+		fmt.Printf("dhlHookOrderExample result: %v\n", result)
+	}
+}
+
+func dhlCancelCreatedOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, trackingNumber string) {
+	result, err := dpl.CancelCreatedOrder("DHL", trackingNumber)
+	if err != nil {
+		fmt.Printf("dhlCancelCreatedOrderExample err: %v\n", err)
+	} else {
+		fmt.Printf("dhlCancelCreatedOrderExample result: %v\n", result)
+	}
+}
+
+func shopeeCancelCreatedOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, trackingNumber string) {
+	result, err := dpl.CancelCreatedOrder("SHOPEE", trackingNumber)
+	if err != nil {
+		fmt.Printf("shopeeCancelCreatedOrderExample err: %v\n", err)
+	} else {
+		fmt.Printf("shopeeCancelCreatedOrderExample result: %v\n", result)
+	}
+}
+
+func flashCancelCreatedOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, trackingNumber string) {
+	result, err := dpl.CancelCreatedOrder("FLASH", trackingNumber)
+	if err != nil {
+		fmt.Printf("flashCancelCreatedOrderExample err: %v\n", err)
+	} else {
+		fmt.Printf("flashCancelCreatedOrderExample result: %v\n", result)
+	}
 }

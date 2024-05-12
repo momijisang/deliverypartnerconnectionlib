@@ -25,3 +25,7 @@ type OrderHook interface {
 type OrderReceived interface {
 	CreateReceived(order Order) (trackingNo map[string]interface{}, err error)
 }
+
+type OrderCancelCreated interface {
+	CancelCreatedOrder(trackingNumber string) (trackingNo map[string]interface{}, err error)
+}

@@ -27,8 +27,7 @@ type UpdateOrderResponse struct {
 	RetCode int `json:"ret_code"`
 }
 
-type CancelOrderResponse struct {
-}
+type CancelOrderResponse map[string]interface{}
 
 type ShopeeCreateOrderResponse struct {
 	OrderID              string  `json:"order_id"`

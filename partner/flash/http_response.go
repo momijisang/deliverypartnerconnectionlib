@@ -13,3 +13,5 @@ type FlashOrderUpdateAPIResponse struct {
 
 type FlashOrderDeleteAPIResponse struct {
 }
+
+type FlashOrderCancelCreatedAPIResponse map[string]interface{}

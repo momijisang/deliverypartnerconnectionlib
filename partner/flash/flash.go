@@ -7,27 +7,30 @@ import (
 )
 
 var (
-	_ deliverypartnerconnectionlib.OrderCreator = (*flashService)(nil)
-	_ deliverypartnerconnectionlib.OrderUpdator = (*flashService)(nil)
-	_ deliverypartnerconnectionlib.OrderDeleter = (*flashService)(nil)
+	_ deliverypartnerconnectionlib.OrderCreator       = (*flashService)(nil)
+	_ deliverypartnerconnectionlib.OrderUpdator       = (*flashService)(nil)
+	_ deliverypartnerconnectionlib.OrderDeleter       = (*flashService)(nil)
+	_ deliverypartnerconnectionlib.OrderCancelCreated = (*flashService)(nil)
 )
 
 func NewFlashService(
 	flashCreateOrderAPI FlashCreateOrderAPI,
 	flashUpdateOrderAPI FlashUpdateShipmentInfo,
 	flashDeleteOrderaPI FlashDeleteOrderAPI,
+	flashCancelCreatedOrderAPI flashCancelCreatedOrderAPI,
 	secretKey string,
 	merchantID string,
 	options ...FlashServiceOption,
 ) *flashService {
 	fs := &flashService{
-		flashCreateOrderAPI: flashCreateOrderAPI,
-		flashUpdateOrderAPI: flashUpdateOrderAPI,
-		flashDeleteOrderaPI: flashDeleteOrderaPI,
-		secretKey:           secretKey,
-		merchantID:          merchantID,
-		nonceGenerator:      generateNonceStr,
-		signatureGenerator:  generateSignature,
+		flashCreateOrderAPI:        flashCreateOrderAPI,
+		flashUpdateOrderAPI:        flashUpdateOrderAPI,
+		flashDeleteOrderaPI:        flashDeleteOrderaPI,
+		flashCancelCreatedOrderAPI: flashCancelCreatedOrderAPI,
+		secretKey:                  secretKey,
+		merchantID:                 merchantID,
+		nonceGenerator:             generateNonceStr,
+		signatureGenerator:         generateSignature,
 	}
 
 	for _, option := range options {
@@ -52,14 +55,15 @@ func WithSignatureGenerator(sg signatureGeneratorFunc) FlashServiceOption {
 }
 
 type flashService struct {
-	flashCreateOrderAPI FlashCreateOrderAPI
-	flashUpdateOrderAPI FlashUpdateShipmentInfo
-	flashDeleteOrderaPI FlashDeleteOrderAPI
-	secretKey           string
-	merchantID          string
-	baseURL             string
-	nonceGenerator      nonceGeneratorFunc
-	signatureGenerator  signatureGeneratorFunc
+	flashCreateOrderAPI        FlashCreateOrderAPI
+	flashUpdateOrderAPI        FlashUpdateShipmentInfo
+	flashDeleteOrderaPI        FlashDeleteOrderAPI
+	flashCancelCreatedOrderAPI flashCancelCreatedOrderAPI
+	secretKey                  string
+	merchantID                 string
+	baseURL                    string
+	nonceGenerator             nonceGeneratorFunc
+	signatureGenerator         signatureGeneratorFunc
 }
 
 type nonceGeneratorFunc func(int) string
@@ -183,4 +187,25 @@ func (f *flashService) DeleteOrder(trackingNo string) error {
 
 func (f *flashService) CreateReceived(order deliverypartnerconnectionlib.Order) (map[string]interface{}, error) {
 	return nil, nil
+}
+
+func (f *flashService) CancelCreatedOrder(trackingNumber string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+
+	nonceStr := f.nonceGenerator(32)
+	cancelParam := map[string]string{
+		"mchId":    f.merchantID,
+		"nonceStr": nonceStr,
+	}
+
+	plainSignature := f.signatureGenerator(cancelParam, f.secretKey)
+
+	cancelParam["sign"] = plainSignature
+
+	result, err := f.flashCancelCreatedOrderAPI.PostForm("/open/v1/notify/"+trackingNumber+"/cancel", cancelParam)
+	if err != nil {
+		return result, fmt.Errorf("failed to cancel order with flash: %s", err)
+	}
+
+	return result, nil
 }

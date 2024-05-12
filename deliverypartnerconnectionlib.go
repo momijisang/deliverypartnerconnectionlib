@@ -1,11 +1,12 @@
 package deliverypartnerconnectionlib
 
 type DeliveryPartnerConnectionLib struct {
-	partnerCreateOrderAdaptor    map[string]OrderCreator
-	partnerUpdateOrderAdaptor    map[string]OrderUpdator
-	partnerDeleteOrderAdaptor    map[string]OrderDeleter
-	partnerHookOrderAdaptor      map[string]OrderHook
-	partnerCreateReceivedAdaptor map[string]OrderReceived
+	partnerCreateOrderAdaptor        map[string]OrderCreator
+	partnerUpdateOrderAdaptor        map[string]OrderUpdator
+	partnerDeleteOrderAdaptor        map[string]OrderDeleter
+	partnerHookOrderAdaptor          map[string]OrderHook
+	partnerCreateReceivedAdaptor     map[string]OrderReceived
+	partnerCancelCreatedOrderAdaptor map[string]OrderCancelCreated
 }
 
 func New(
@@ -14,13 +15,15 @@ func New(
 	partnerDeleteOrderAdaptor map[string]OrderDeleter,
 	partnerHookOrderAdaptor map[string]OrderHook,
 	partnerCreateReceivedAdaptor map[string]OrderReceived,
+	partnerCancelCreatedOrderAdaptor map[string]OrderCancelCreated,
 ) *DeliveryPartnerConnectionLib {
 	return &DeliveryPartnerConnectionLib{
-		partnerCreateOrderAdaptor:    partnerCreateOrderAdaptor,
-		partnerUpdateOrderAdaptor:    partnerUpdateOrderAdaptor,
-		partnerDeleteOrderAdaptor:    partnerDeleteOrderAdaptor,
-		partnerHookOrderAdaptor:      partnerHookOrderAdaptor,
-		partnerCreateReceivedAdaptor: partnerCreateReceivedAdaptor,
+		partnerCreateOrderAdaptor:        partnerCreateOrderAdaptor,
+		partnerUpdateOrderAdaptor:        partnerUpdateOrderAdaptor,
+		partnerDeleteOrderAdaptor:        partnerDeleteOrderAdaptor,
+		partnerHookOrderAdaptor:          partnerHookOrderAdaptor,
+		partnerCreateReceivedAdaptor:     partnerCreateReceivedAdaptor,
+		partnerCancelCreatedOrderAdaptor: partnerCancelCreatedOrderAdaptor,
 	}
 }
 
@@ -46,5 +49,10 @@ func (c *DeliveryPartnerConnectionLib) CreateReceived(partner string, order Orde
 
 func (c *DeliveryPartnerConnectionLib) HookOrder(partner string, tracking_no_list []string) (map[string]interface{}, error) {
 	res, err := c.partnerHookOrderAdaptor[partner].HookOrder(tracking_no_list)
+	return res, err
+}
+
+func (c *DeliveryPartnerConnectionLib) CancelCreatedOrder(partner string, trackingNumber string) (map[string]interface{}, error) {
+	res, err := c.partnerCancelCreatedOrderAdaptor[partner].CancelCreatedOrder(trackingNumber)
 	return res, err
 }

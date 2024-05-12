@@ -17,15 +17,16 @@ type HDR struct {
 }
 
 type BD struct {
-	PickupAccountID string         `json:"pickupAccountId,omitempty"`
-	SoldToAccountID string         `json:"soldToAccountId,omitempty"`
-	PickupDateTime  string         `json:"pickupDateTime,omitempty"`
-	HandoverMethod  int            `json:"handoverMethod,omitempty"`
-	ShipmentContent string         `json:"shipmentContent,omitempty"`
-	PickupAddress   *DHLADdress    `json:"pickupAddress,omitempty"`
-	SipperAddress   *DHLADdress    `json:"shipperAddress,omitempty"`
-	ShipmentItems   []ShipmentItem `json:"shipmentItems,omitempty"`
-	Label           *Label         `json:"label,omitempty"`
+	PickupAccountID         string         `json:"pickupAccountId,omitempty"`
+	SoldToAccountID         string         `json:"soldToAccountId,omitempty"`
+	PickupDateTime          string         `json:"pickupDateTime,omitempty"`
+	HandoverMethod          int            `json:"handoverMethod,omitempty"`
+	ShipmentContent         string         `json:"shipmentContent,omitempty"`
+	PickupAddress           *DHLADdress    `json:"pickupAddress,omitempty"`
+	SipperAddress           *DHLADdress    `json:"shipperAddress,omitempty"`
+	ShipmentItems           []ShipmentItem `json:"shipmentItems,omitempty"`
+	Label                   *Label         `json:"label,omitempty"`
+	TrackingReferenceNumber []string       `json:"trackingReferenceNumber,omitempty"`
 }
 
 type ShipmentItem struct {
@@ -98,4 +99,13 @@ type Label struct {
 	PageSize string `json:"pageSize"`
 	Format   string `json:"format"`
 	Layout   string `json:"layout"`
+}
+
+type DHLHookOrderAPIRequest struct {
+	TrackItemRequest TrackItemRequest `json:"trackItemRequest"`
+}
+
+type TrackItemRequest struct {
+	HDR HDR `json:"hdr"`
+	BD  BD  `json:"bd"`
 }

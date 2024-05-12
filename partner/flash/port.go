@@ -13,3 +13,7 @@ type FlashUpdateShipmentInfo interface {
 type FlashDeleteOrderAPI interface {
 	PostForm(endpoint string, form map[string]string) (FlashOrderDeleteAPIResponse, error)
 }
+
+type flashCancelCreatedOrderAPI interface {
+	PostForm(endpoint string, form map[string]string) (FlashOrderCancelCreatedAPIResponse, error)
+}

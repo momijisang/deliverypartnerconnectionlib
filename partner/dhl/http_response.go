@@ -24,8 +24,9 @@ type AccessTokenResponse struct {
 	Token string `json:"token"`
 }
 
-type DHLDeleteOrderAPIResponse struct {
-}
+type DHLDeleteOrderAPIResponse map[string]interface{}
 
 type DHLUpdateOrderAPIResponse struct {
 }
+
+type DHLHookOrderAPIResponse map[string]interface{}
