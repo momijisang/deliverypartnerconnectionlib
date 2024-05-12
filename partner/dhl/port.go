@@ -21,10 +21,10 @@ type DHLOrderUpdatorAPI interface {
 	Post(endpoint string, headers map[string]string, request DHLUpdateOrderAPIRequest) (DHLUpdateOrderAPIResponse, error)
 }
 
-type DHLOrderHookAPI interface {
-	Post(endpoint string, headers map[string]string, request DHLHookOrderAPIRequest) (DHLHookOrderAPIResponse, error)
-}
-
 type DHLCancelCreatedOrderAPI interface {
 	Post(endpoint string, headers map[string]string, request DHLDeleteOrderAPIRequest) (DHLDeleteOrderAPIResponse, error)
+}
+
+type DHLHookOrderAPI interface {
+	PostHook(endpoint string, headers map[string]string, request DHLHookOrderAPIRequest) (DHLHookOrderAPIResponse, error)
 }

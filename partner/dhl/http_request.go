@@ -4,6 +4,10 @@ type DHLCreateOrderAPIRequest struct {
 	ManifestRequest ManifestRequest `json:"manifestRequest"`
 }
 
+type DHLHookOrderAPIRequest struct {
+	TrackItemRequest ManifestRequest `json:"trackItemRequest"`
+}
+
 type ManifestRequest struct {
 	HDR HDR `json:"hdr"`
 	BD  BD  `json:"bd"`
@@ -26,6 +30,7 @@ type BD struct {
 	SipperAddress           *DHLADdress    `json:"shipperAddress,omitempty"`
 	ShipmentItems           []ShipmentItem `json:"shipmentItems,omitempty"`
 	Label                   *Label         `json:"label,omitempty"`
+	Epod                    string         `json:"ePODRequired,omitempty"`
 	TrackingReferenceNumber []string       `json:"trackingReferenceNumber,omitempty"`
 }
 
@@ -99,13 +104,4 @@ type Label struct {
 	PageSize string `json:"pageSize"`
 	Format   string `json:"format"`
 	Layout   string `json:"layout"`
-}
-
-type DHLHookOrderAPIRequest struct {
-	TrackItemRequest TrackItemRequest `json:"trackItemRequest"`
-}
-
-type TrackItemRequest struct {
-	HDR HDR `json:"hdr"`
-	BD  BD  `json:"bd"`
 }

@@ -20,7 +20,7 @@ type dhlService struct {
 	dhlOrderCreatorAPI       DHLOrderCreatorAPI
 	dhlOrderDeletorAPI       DHLOrderDeletorAPI
 	dhlOrderUpdatorAPI       DHLOrderUpdatorAPI
-	dhlOrderHookAPI          DHLOrderHookAPI
+	dhlHookOrderAPI          DHLHookOrderAPI
 	dhlCancelCreatedOrderAPI DHLCancelCreatedOrderAPI
 	DHLAPIConfig             DHLAPIConfig
 	nowFunc                  func() time.Time
@@ -38,7 +38,7 @@ func NewDHLService(
 	dhlOrderCreatorAPI DHLOrderCreatorAPI,
 	dhlOrderUpdatorAPI DHLOrderUpdatorAPI,
 	dhlOrderDeletorAPI DHLOrderDeletorAPI,
-	dhlOrderHookAPI DHLOrderHookAPI,
+	dhlHookOrderAPI DHLHookOrderAPI,
 	dhlCancelCreatedOrderAPI DHLCancelCreatedOrderAPI,
 	dhlAPIConfig DHLAPIConfig,
 	options ...DHLServiceOption,
@@ -48,7 +48,7 @@ func NewDHLService(
 		dhlOrderCreatorAPI:       dhlOrderCreatorAPI,
 		dhlOrderDeletorAPI:       dhlOrderDeletorAPI,
 		dhlOrderUpdatorAPI:       dhlOrderUpdatorAPI,
-		dhlOrderHookAPI:          dhlOrderHookAPI,
+		dhlHookOrderAPI:          dhlHookOrderAPI,
 		dhlCancelCreatedOrderAPI: dhlCancelCreatedOrderAPI,
 		DHLAPIConfig:             dhlAPIConfig,
 		nowFunc: func() time.Time {
@@ -265,6 +265,7 @@ func (f *dhlService) UpdateOrder(trackingNo string, order deliverypartnerconnect
 								State:    order.Receiver.Province,
 								District: order.Receiver.District,
 								PostCode: order.Receiver.PostalCode,
+								Phone:    order.Receiver.Phone,
 							},
 						},
 					},
@@ -381,11 +382,7 @@ func (f *dhlService) CreateReceived(order deliverypartnerconnectionlib.Order) (m
 								State:    order.Receiver.Province,
 								District: order.Receiver.District,
 								PostCode: order.Receiver.PostalCode,
-							},
-							ShipmentContents: []ShipmentContent{
-								{
-									Description: "pickup request",
-								},
+								Phone:    order.Receiver.Phone,
 							},
 						},
 					},
@@ -404,39 +401,43 @@ func (f *dhlService) CreateReceived(order deliverypartnerconnectionlib.Order) (m
 	return resDHLOrderCreateOrder, nil
 }
 
-func (f *dhlService) HookOrder(trackingNumberList []string) (map[string]interface{}, error) {
-	var result map[string]interface{}
+func (f *dhlService) HookOrder(trackingNoLists []string) (map[string]interface{}, error) {
+
+	dhlURL := "/rest/v3/Tracking"
 
 	accessToken, err := f.authorizer.Authenticate()
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
-	trackingDateTime := f.nowFunc().Format("2006-01-02T15:04:05-07:00")
-	result, err = f.dhlOrderHookAPI.Post(
-		"/rest/v3/Tracking",
+	res, err := f.dhlHookOrderAPI.PostHook(
+		dhlURL,
 		map[string]string{
 			"Content-Type": "application/json",
 		}, DHLHookOrderAPIRequest{
-			TrackItemRequest: TrackItemRequest{
+			TrackItemRequest: ManifestRequest{
 				HDR: HDR{
 					MessageType:     "TRACKITEM",
-					MessageDateTime: trackingDateTime,
+					MessageDateTime: time.Now().Format("2006-01-02T15:04:05-07:00"),
 					MessageVersion:  "1.0",
 					AccessToken:     accessToken,
 				},
 				BD: BD{
 					PickupAccountID:         f.DHLAPIConfig.PickupAccountID,
 					SoldToAccountID:         f.DHLAPIConfig.SoldToAccountID,
-					TrackingReferenceNumber: trackingNumberList,
+					Epod:                    "Y",
+					TrackingReferenceNumber: trackingNoLists,
 				},
 			},
 		})
-	if err != nil {
-		return result, fmt.Errorf("failed to hook order with dhl: %s", err)
-	}
 
-	return result, nil
+	if err != nil {
+		return nil, fmt.Errorf("failed to hook order: %w", err)
+	}
+	resMap := make(map[string]interface{})
+	resMap["trackingNo"] = res.TrackItemResponse.Bd.ShipmentItems
+
+	return resMap, nil
 }
 
 func (f *dhlService) CancelCreatedOrder(trackingNumber string) (map[string]interface{}, error) {

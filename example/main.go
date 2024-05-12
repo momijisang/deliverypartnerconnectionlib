@@ -90,10 +90,10 @@ func main() {
 	)
 
 	_ = dpl
-	// dhlHookOrderExample(dpl, []string{"1TH15107346524631"})
 	// dhlCancelCreatedOrderExample(dpl, "1TH15107346524631")
 	// shopeeCancelCreatedOrderExample(dpl, "SPXTH044752225833")
 	// flashCancelCreatedOrderExample(dpl, "TH4714C6DB0A")
+	dhlHookOrderExamle(dpl, []string{"THHSU9845765384", "THHSU1223570269"})
 
 	// tracking_no_list := []string{"SPXTH026817968592", "SPXTH026817099535"}
 	// shopeeHookOrderExamle(dpl, tracking_no_list)
@@ -481,15 +481,6 @@ func shopeeHookOrderExamle(dpl *deliverypartnerconnectionlib.DeliveryPartnerConn
 
 }
 
-func dhlHookOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, trackingNumberList []string) {
-	result, err := dpl.HookOrder("DHL", trackingNumberList)
-	if err != nil {
-		fmt.Printf("dhlHookOrderExample err: %v\n", err)
-	} else {
-		fmt.Printf("dhlHookOrderExample result: %v\n", result)
-	}
-}
-
 func dhlCancelCreatedOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, trackingNumber string) {
 	result, err := dpl.CancelCreatedOrder("DHL", trackingNumber)
 	if err != nil {
@@ -515,4 +506,12 @@ func flashCancelCreatedOrderExample(dpl *deliverypartnerconnectionlib.DeliveryPa
 	} else {
 		fmt.Printf("flashCancelCreatedOrderExample result: %v\n", result)
 	}
+}
+
+func dhlHookOrderExamle(dpl *deliverypartnerconnectionlib.DeliveryPartnerConnectionLib, tracking_no_list []string) {
+
+	res, _ := dpl.HookOrder("DHL", tracking_no_list)
+
+	fmt.Println("result===>", res)
+
 }
