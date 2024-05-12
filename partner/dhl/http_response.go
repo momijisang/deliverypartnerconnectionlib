@@ -83,5 +83,3 @@ type DHLDeleteOrderAPIResponse map[string]interface{}
 
 type DHLUpdateOrderAPIResponse struct {
 }
-
-type DHLHookOrderAPIResponse map[string]interface{}
